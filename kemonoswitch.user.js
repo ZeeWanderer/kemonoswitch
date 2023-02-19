@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.3.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -87,12 +87,12 @@ function switch_fanbox_to_kemono()
     try
     {
         let userId = undefined
-        let postID = undefined
+        let postId = undefined
         let bg_images = Array.from(document.querySelectorAll('[style^="background-image:"')).map((e)=>{ return e.style.backgroundImage });
 
         for (let image_idx in bg_images)
         {
-            if (userId && postID)
+            if (userId && postId)
             {
                 break;
             }
@@ -108,19 +108,19 @@ function switch_fanbox_to_kemono()
                 }
             }
 
-            if (postID === undefined)
+            if (postId === undefined)
             {
-                const match = image.match(postImageRegex); // look for post/<userId>/cover
+                const match = image.match(postImageRegex); // look for post/<postId>/cover
                 if (match)
                 {
-                    postID = match.groups.postId;
+                    postId = match.groups.postId;
                 }
             }
         }
 
         if (userId)
         {
-            window.location.assign(postID === undefined ? `https://kemono.party/fanbox/user/${userId}` : `https://kemono.party/fanbox/user/${userId}/post/${postID}`);
+            window.location.assign(postId === undefined ? `https://kemono.party/fanbox/user/${userId}` : `https://kemono.party/fanbox/user/${userId}/post/${postId}`);
         }
         else
         {
