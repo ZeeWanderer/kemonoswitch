@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.0.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -61,14 +61,7 @@ function switch_kemono_to_service()
         switch (service)
         {
             case patreon_service:
-                if(postId === undefined)
-                {
-                    window.location.assign(`https://www.patreon.com/user?u=${userId}`)
-                }
-                else
-                {
-                    window.location.assign(`https://www.patreon.com/posts/${postId}`)
-                }
+                window.location.assign(postId === undefined ? `https://www.patreon.com/user?u=${userId}` : `https://www.patreon.com/posts/${postId}`)
                 break;
             case fanbox_service:
                 window.location.assign(`https://www.pixiv.net/fanbox/creator/${userId}`)
@@ -83,7 +76,7 @@ function switch_kemono_to_service()
                 window.location.assign(`https://fantia.jp/fanclubs/${userId}`)
                 break;
             case boosty_service:
-                window.location.assign(`https://boosty.to/ ${userId}`)
+                window.location.assign(`https://boosty.to/${userId}`)
                 break;
             default:
                 console.log(`Unsupported service: ${service}`)
