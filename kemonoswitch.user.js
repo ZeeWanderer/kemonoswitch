@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.0.1
+// @version      2.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
+// @match        https://*.gumroad.com/*
 // @match        https://kemono.party/*/user/*
 // @icon         https://kemono.party/static/favicon.ico
 // @updateURL    https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
@@ -12,8 +13,9 @@
 // @grant        none
 // ==/UserScript==
 
-const kemono_hostname = "kemono.party";
-const patreon_hostname = "www.patreon.com";
+const kemono_domain = "kemono.party";
+const patreon_domain = "www.patreon.com";
+const gumroad_domain = "gumroad.com";
 
 const kemonoRegex = /\/(?<service>\w+)\/user\/(?<userId>[^\/]+)(\/post\/(?<postId>\d+))?/;
 
@@ -45,6 +47,34 @@ function switch_patreon_to_kemono()
     finally
     {
         window.location.assign(`https://kemono.party/patreon/user/${ID}`)
+    }
+}
+
+function switch_gumroad_to_kemono()
+{
+    try
+    {
+        // universal selector
+        let profile = document.querySelector('script[type="application/json"][class=js-react-on-rails-component][data-component-name*="Profile"]');
+        if (profile === null)
+        {
+            // main page selector
+            profile = document.querySelector("script[data-component-name=Profile]");
+        }
+        if (profile === null)
+        {
+            // product page selector
+            profile = document.querySelector("script[data-component-name=ProfileProductPage]");
+        }
+
+        const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
+        const ID = data.creator_profile.external_id
+
+        window.location.assign(`https://kemono.party/gumroad/user/${ID}`)
+    }
+    catch(e)
+    {
+        console.log(e)
     }
 }
 
@@ -92,13 +122,18 @@ function switch_()
 {
     const hostname = window.location.hostname;
     switch (hostname) {
-        case kemono_hostname: // user in on kemono, get service and switch them back
+        case kemono_domain: // user in on kemono, get service and switch them back
             switch_kemono_to_service();
             break;
-        case patreon_hostname: // user in on patreon, switch them to kemono
+        case patreon_domain: // user in on patreon, switch them to kemono
             switch_patreon_to_kemono();
             break;
-        default:
+        default: // Handle subdomain snowflakes
+            if(hostname.endsWith(gumroad_domain))
+            {
+                switch_gumroad_to_kemono();
+                break;
+            }
             console.log(`Unsupported host: ${hostname}`)
             break;
     }
