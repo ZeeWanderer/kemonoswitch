@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
+// @match        https://*.fanbox.cc/*
 // @match        https://*.gumroad.com/*
 // @match        https://kemono.party/*/user/*
 // @icon         https://kemono.party/static/favicon.ico
@@ -15,6 +16,7 @@
 
 const kemono_domain = "kemono.party";
 const patreon_domain = "www.patreon.com";
+const fanbox_domain = "fanbox.cc";
 const gumroad_domain = "gumroad.com";
 
 const kemonoRegex = /\/(?<service>\w+)\/user\/(?<userId>[^\/]+)(\/post\/(?<postId>\d+))?/;
@@ -78,6 +80,63 @@ function switch_gumroad_to_kemono()
     }
 }
 
+function switch_fanbox_to_kemono()
+{
+    const creatorImageRegex = /(creator|user)\/(?<userId>\d+)\/cover/;
+    //const postImageRegex = /post\/(?<postId>\d+)\/cover/;
+    try
+    {
+        let profile = document.querySelector('script[type="application/ld+json"]');
+
+        const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
+        const image = data[0].image // contains something like https://pixiv.pximg.net/c/1200x630_90_a2_g5/fanbox/public/images/creator/3316400/cover/mZXFThZDHXtQspHbtZGwBLTl.jpeg
+        const match = image.match(creatorImageRegex) // look for (creator|user)/<userId>/cover
+        const ID = match.groups.userId
+
+        window.location.assign(`https://kemono.party/fanbox/user/${ID}`)
+    }
+    catch(e)
+    {
+        try
+        {
+            let userId = undefined
+            let postID = undefined
+            let bg_images = Array.from(document.querySelectorAll('[style^="background-image:"')).map((e)=>{ return e.style.backgroundImage });
+
+            for (let image_idx in bg_images)
+            {
+                let image = bg_images[image_idx];
+
+                if (userId === undefined)
+                {
+                    const match = image.match(creatorImageRegex); // look for (creator|user)/<userId>/cover
+                    if (match)
+                    {
+                        userId = match.groups.userId;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (userId)
+            {
+                window.location.assign(`https://kemono.party/gumroad/user/${userId}`);
+            }
+            else
+            {
+                throw "userId not found";
+            }
+        }
+        catch(b)
+        {
+            console.log(b)
+        }
+    }
+}
+
 function switch_kemono_to_service()
 {
     try
@@ -132,6 +191,11 @@ function switch_()
             if(hostname.endsWith(gumroad_domain))
             {
                 switch_gumroad_to_kemono();
+                break;
+            }
+            if(hostname.endsWith(fanbox_domain))
+            {
+                switch_fanbox_to_kemono();
                 break;
             }
             console.log(`Unsupported host: ${hostname}`)
