@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.5.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -229,7 +229,7 @@ function switch_kemono_to_service()
                 window.location.assign(`https://subscribestar.adult/${userId}`)
                 break;
             case fantia_service:
-                window.location.assign(`https://fantia.jp/fanclubs/${userId}`)
+                window.location.assign(postId === undefined ? `https://fantia.jp/fanclubs/${userId}` : `https://fantia.jp/posts/${postId}`)
                 break;
             case boosty_service:
                 window.location.assign(`https://boosty.to/${userId}`)
