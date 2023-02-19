@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.2.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -82,7 +82,7 @@ function switch_gumroad_to_kemono()
 
 function switch_fanbox_to_kemono()
 {
-    const creatorImageRegex = /(creator|user)\/(?<userId>\d+)\/cover/;
+    const creatorImageRegex = /(?:creator|user)\/(?<userId>\d+)\/cover/;
     //const postImageRegex = /post\/(?<postId>\d+)\/cover/;
     try
     {
