@@ -8,6 +8,7 @@
 // @match        https://*.fanbox.cc/*
 // @match        https://*.gumroad.com/*
 // @match        https://subscribestar.adult/*
+// @match        https://fantia.jp/*
 // @match        https://kemono.party/*/user/*
 // @icon         https://kemono.party/static/favicon.ico
 // @updateURL    https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
@@ -20,6 +21,7 @@ const patreon_domain = "www.patreon.com";
 const fanbox_domain = "fanbox.cc";
 const gumroad_domain = "gumroad.com";
 const subscribestar_domain = "subscribestar.adult";
+const fantia_domain = "fantia.jp";
 
 const kemonoRegex = /\/(?<service>\w+)\/user\/(?<userId>[^\/]+)(\/post\/(?<postId>\d+))?/;
 
@@ -137,9 +139,9 @@ function switch_fanbox_to_kemono()
 
 function switch_subscribestar_to_kemono()
 {
-    // TODO: Allow transition to posts. 
+    // TODO: Allow transition to posts.
     // Can't do for naow cause i did not find a creator with a free post and i don't have the subscribtion so idk apout post url and page content
-    
+
     const userIDRegex = /\/(?<userId>[^\/]+)/
 
     try
@@ -149,6 +151,52 @@ function switch_subscribestar_to_kemono()
         {
              window.location.assign(`https://kemono.party/subscribestar/user/${match.groups.userId}`);
         }
+    }
+    catch(e)
+    {
+        console.log(e)
+    }
+}
+
+function switch_fantia_to_kemono()
+{
+    const userIDRegex = /fanclubs\/(?<userId>\d+)/
+    const postIDRegex = /posts\/(?<postId>\d+)/
+
+    try
+    {
+        let userId = undefined;
+        let postId = undefined;
+
+        const userIdMatch = window.location.pathname.match(userIDRegex);
+        if (userIdMatch)
+        {
+             userId = userIdMatch.groups.userId
+        }
+
+        const postIdMatch = window.location.pathname.match(postIDRegex);
+        if (postIdMatch)
+        {
+             postId = postIdMatch.groups.postId
+        }
+
+        if(userId == undefined)
+        {
+            try
+            {
+                const profile = document.querySelector('script[type="application/ld+json"]');
+                const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
+                const url = data.author.url
+                const userIdMatch = url.match(userIDRegex);
+                userId = userIdMatch.groups.userId
+            }
+            catch(a)
+            {
+                throw a;
+            }
+        }
+
+        window.location.assign(postId === undefined ? `https://kemono.party/fantia/user/${userId}` : `https://kemono.party/fantia/user/${userId}/post/${postId}`);
     }
     catch(e)
     {
@@ -206,8 +254,11 @@ function switch_()
         case patreon_domain: // user in on patreon, switch them to kemono
             switch_patreon_to_kemono();
             break;
-        case subscribestar_domain: // user in on patreon, switch them to kemono
+        case subscribestar_domain: // user in on subscribestar, switch them to kemono
             switch_subscribestar_to_kemono();
+            break;
+        case fantia_domain: // user in on fantia, switch them to kemono
+            switch_fantia_to_kemono();
             break;
         default: // Handle subdomain snowflakes
             if(hostname.endsWith(gumroad_domain))
