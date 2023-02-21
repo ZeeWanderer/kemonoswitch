@@ -6,7 +6,7 @@ Press ALT+K to switch to kemono or back.
 
 Usersript will try to match service<->kemono for supported services. That includes post pages if possible. 
 
-Do note that when switching from service post page to kemono post page if a specific post was not imported you will end up on the creator's page.
+Do note that when switching from service post page to kemono post page is supported if a specific post was not imported you will end up on the creator's page.
 
 ## Support
 - pateon: `patreon::creator<->kemono::creator`, `patreon::post<->kemono::post`
