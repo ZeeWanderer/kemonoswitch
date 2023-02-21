@@ -56,34 +56,6 @@ function switch_patreon_to_kemono()
     }
 }
 
-function switch_gumroad_to_kemono()
-{
-    try
-    {
-        // universal selector
-        let profile = document.querySelector('script[type="application/json"][class=js-react-on-rails-component][data-component-name*="Profile"]');
-        if (profile === null)
-        {
-            // main page selector
-            profile = document.querySelector("script[data-component-name=Profile]");
-        }
-        if (profile === null)
-        {
-            // product page selector
-            profile = document.querySelector("script[data-component-name=ProfileProductPage]");
-        }
-
-        const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
-        const ID = data.creator_profile.external_id
-
-        window.location.assign(`https://kemono.party/gumroad/user/${ID}`)
-    }
-    catch(e)
-    {
-        console.log(e)
-    }
-}
-
 function switch_fanbox_to_kemono()
 {
     const creatorImageRegex = /(?:creator|user)\/(?<userId>\d+)\/cover/;
@@ -134,6 +106,34 @@ function switch_fanbox_to_kemono()
     catch(b)
     {
         console.log(b)
+    }
+}
+
+function switch_gumroad_to_kemono()
+{
+    try
+    {
+        // universal selector
+        let profile = document.querySelector('script[type="application/json"][class=js-react-on-rails-component][data-component-name*="Profile"]');
+        if (profile === null)
+        {
+            // main page selector
+            profile = document.querySelector("script[data-component-name=Profile]");
+        }
+        if (profile === null)
+        {
+            // product page selector
+            profile = document.querySelector("script[data-component-name=ProfileProductPage]");
+        }
+
+        const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
+        const ID = data.creator_profile.external_id
+
+        window.location.assign(`https://kemono.party/gumroad/user/${ID}`)
+    }
+    catch(e)
+    {
+        console.log(e)
     }
 }
 
