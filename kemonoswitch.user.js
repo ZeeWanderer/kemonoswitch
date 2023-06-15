@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.5.1
+// @version      2.5.2
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -10,13 +10,14 @@
 // @match        https://subscribestar.adult/*
 // @match        https://fantia.jp/*
 // @match        https://kemono.party/*/user/*
-// @icon         https://kemono.party/static/favicon.ico
+// @match        https://kemono.su/*/user/*
+// @icon         https://kemono.su/static/favicon.ico
 // @updateURL    https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
 // @downloadURL  https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
 // @grant        none
 // ==/UserScript==
 
-const kemono_domain = "kemono.party";
+const kemono_domain = "kemono.su";
 const patreon_domain = "www.patreon.com";
 const fanbox_domain = "fanbox.cc";
 const gumroad_domain = "gumroad.com";
@@ -52,7 +53,7 @@ function switch_patreon_to_kemono()
     }
     finally
     {
-        window.location.assign(`https://kemono.party/patreon/user/${ID}`)
+        window.location.assign(`https://${kemono_domain}/patreon/user/${ID}`)
     }
 }
 
@@ -96,7 +97,7 @@ function switch_fanbox_to_kemono()
 
         if (userId)
         {
-            window.location.assign(postId === undefined ? `https://kemono.party/fanbox/user/${userId}` : `https://kemono.party/fanbox/user/${userId}/post/${postId}`);
+            window.location.assign(postId === undefined ? `https://${kemono_domain}/fanbox/user/${userId}` : `https://${kemono_domain}/fanbox/user/${userId}/post/${postId}`);
         }
         else
         {
@@ -129,7 +130,7 @@ function switch_gumroad_to_kemono()
         const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
         const ID = data.creator_profile.external_id
 
-        window.location.assign(`https://kemono.party/gumroad/user/${ID}`)
+        window.location.assign(`https://${kemono_domain}/gumroad/user/${ID}`)
     }
     catch(e)
     {
@@ -149,7 +150,7 @@ function switch_subscribestar_to_kemono()
         const match = window.location.pathname.match(userIDRegex);
         if (match)
         {
-             window.location.assign(`https://kemono.party/subscribestar/user/${match.groups.userId}`);
+             window.location.assign(`https://${kemono_domain}/subscribestar/user/${match.groups.userId}`);
         }
     }
     catch(e)
@@ -196,7 +197,7 @@ function switch_fantia_to_kemono()
             }
         }
 
-        window.location.assign(postId === undefined ? `https://kemono.party/fantia/user/${userId}` : `https://kemono.party/fantia/user/${userId}/post/${postId}`);
+        window.location.assign(postId === undefined ? `https://${kemono_domain}/fantia/user/${userId}` : `https://${kemono_domain}/fantia/user/${userId}/post/${postId}`);
     }
     catch(e)
     {
@@ -280,7 +281,7 @@ function keyboard_events(event)
 {
     if (event.altKey)
     {
-        if (event.key === 'k' || event.key === 'л')
+        if (event.key === 'k' || event.key === 'K' || event.key === 'л' || event.key === 'Л')
         {
             switch_();
         }
