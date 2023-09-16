@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.5.2
+// @version      2.5.3
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -18,6 +18,7 @@
 // ==/UserScript==
 
 const kemono_domain = "kemono.su";
+const kemono_domain_party = "kemono.party";
 const patreon_domain = "www.patreon.com";
 const fanbox_domain = "fanbox.cc";
 const gumroad_domain = "gumroad.com";
@@ -250,6 +251,7 @@ function switch_()
     const hostname = window.location.hostname;
     switch (hostname) {
         case kemono_domain: // user in on kemono, get service and switch them back
+        case kemono_domain_party:
             switch_kemono_to_service();
             break;
         case patreon_domain: // user in on patreon, switch them to kemono
