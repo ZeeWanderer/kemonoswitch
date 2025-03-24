@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.5.3
+// @version      2.6.0
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -26,6 +26,7 @@ const subscribestar_domain = "subscribestar.adult";
 const fantia_domain = "fantia.jp";
 
 const kemonoRegex = /\/(?<service>\w+)\/user\/(?<userId>[^\/]+)(\/post\/(?<postId>\d+))?/;
+const patreonIdRegex = /\?u=(?<id>\d+)/;
 
 const patreon_service = "patreon";
 const fanbox_service = "fanbox";
@@ -36,27 +37,23 @@ const boosty_service = "boosty";
 
 function switch_patreon_to_kemono()
 {
-    let ID = "";
-    try
+    const creatorID0 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id;
+    const creatorID1 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.creator?.data?.relationships?.creator?.data?.id;
+    const creatorID2 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.creator?.included?.[1]?.id;
+    const queryMatch = window.location.search.match(patreonIdRegex);
+    const queryID    = queryMatch?.groups?.id;
+
+    let ID = creatorID0 || creatorID1 || creatorID2 || queryID;
+
+    if (!ID)
     {
-        ID = window.patreon.bootstrap.campaign.data.relationships.creator.data.id
+        console.error("No valid ID found. Aborting redirection.");
+        return;
     }
-    catch(a)
-    {
-        try
-        {
-            ID = window.patreon.bootstrap.creator.included[0].id
-        }
-        catch(b)
-        {
-            ID = `${window.patreon.bootstrap.post.included[0].id}/post/${window.patreon.bootstrap.post.data.id}`
-        }
-    }
-    finally
-    {
-        window.location.assign(`https://${kemono_domain}/patreon/user/${ID}`)
-    }
+
+    window.location.assign(`https://${kemono_domain}/patreon/user/${ID}`);
 }
+
 
 function switch_fanbox_to_kemono()
 {
