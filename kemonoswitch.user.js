@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.6.0
+// @version      2.6.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -11,6 +11,7 @@
 // @match        https://fantia.jp/*
 // @match        https://kemono.party/*/user/*
 // @match        https://kemono.su/*/user/*
+// @match        https://kemono.cr/*/user/*
 // @icon         https://kemono.su/static/favicon.ico
 // @updateURL    https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
 // @downloadURL  https://raw.githubusercontent.com/ZeeWanderer/kemonoswitch/master/kemonoswitch.user.js
@@ -18,7 +19,7 @@
 // ==/UserScript==
 
 const kemono_domain = "kemono.su";
-const kemono_domain_party = "kemono.party";
+const kemono_domain_party = "kemono.cr";
 const patreon_domain = "www.patreon.com";
 const fanbox_domain = "fanbox.cc";
 const gumroad_domain = "gumroad.com";
@@ -37,9 +38,11 @@ const boosty_service = "boosty";
 
 function switch_patreon_to_kemono()
 {
-    const creatorID0 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id;
-    const creatorID1 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.creator?.data?.relationships?.creator?.data?.id;
-    const creatorID2 = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap?.creator?.included?.[1]?.id;
+    const pageBootstrap = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap;
+
+    const creatorID0 = pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id;
+    const creatorID1 = pageBootstrap?.creator?.data?.relationships?.creator?.data?.id;
+    const creatorID2 = pageBootstrap?.creator?.included?.[1]?.id;
     const queryMatch = window.location.search.match(patreonIdRegex);
     const queryID    = queryMatch?.groups?.id;
 
