@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.6.1
+// @version      2.6.2
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -18,7 +18,7 @@
 // @grant        none
 // ==/UserScript==
 
-const kemono_domain = "kemono.su";
+const kemono_domain = "kemono.cr";
 const kemono_domain_party = "kemono.cr";
 const patreon_domain = "www.patreon.com";
 const fanbox_domain = "fanbox.cc";
