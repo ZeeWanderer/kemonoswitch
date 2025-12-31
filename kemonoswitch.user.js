@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.7.1
+// @version      3.0.0
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -36,9 +36,9 @@ const subscribestar_service = "subscribestar";
 const fantia_service = "fantia";
 const boosty_service = "boosty";
 
-const CREATOR_ID_REGEX = /"creator":\{"data":\{"id":"(\d+)"/;
+const patreonCreatorIdRegex = /"creator":\{"data":\{"id":"(\d+)"/;
 
-function* iter_string_chunks(frag_array)
+function* iter_patreon_string_chunks(frag_array)
 {
     if (!Array.isArray(frag_array)) return;
 
@@ -53,34 +53,142 @@ function* iter_string_chunks(frag_array)
     }
 }
 
-function find_creator_id_in_string(s)
+function find_patreon_creator_id_in_string(s)
 {
-    const match = s.match(CREATOR_ID_REGEX);
+    const match = s.match(patreonCreatorIdRegex);
     if (!match) return null;
     return match[1] || match[2] || null;
 }
 
-function extract_creator_id(frag_array)
+function extract_patreon_creator_id(frag_array)
 {
-    for (const chunk of iter_string_chunks(frag_array))
+    for (const chunk of iter_patreon_string_chunks(frag_array))
     {
-        const id = find_creator_id_in_string(chunk);
+        const id = find_patreon_creator_id_in_string(chunk);
         if (id !== null) return id;
     }
     return null;
 }
 
-function switch_patreon_to_kemono()
+const RESOLVER_COST = {
+    cheap: 1,
+    medium: 3,
+    expensive: 5
+};
+
+const RESOLVER_BIAS = {
+    highest: 3,
+    high: 2,
+    neutral: 0,
+    low: -2,
+    lowest: -3
+};
+
+function resolve_with_resolvers(resolvers, context)
+{
+    function is_allowed(when, ctx)
+    {
+        if (typeof when === "function") return !!when(ctx);
+        if (when === undefined) return true;
+        return !!when;
+    }
+
+    function resolve_bias(bias, ctx)
+    {
+        if (typeof bias === "function") return bias(ctx);
+        if (typeof bias === "number") return bias;
+        if (typeof bias === "string") return RESOLVER_BIAS[bias] ?? 0;
+        return 0;
+    }
+
+    function resolve_cost(cost)
+    {
+        if (typeof cost === "number") return cost;
+        if (typeof cost === "string") return RESOLVER_COST[cost] ?? 0;
+        return 0;
+    }
+
+    const ordered = resolvers
+        .map(function (resolver, index) {
+            const allowed = is_allowed(resolver.when, context);
+            const bias = resolve_bias(resolver.bias, context);
+            const cost = resolve_cost(resolver.cost);
+            return { resolver: resolver, allowed: allowed, bias: bias, cost: cost, index: index };
+        })
+        .filter(function (entry) { return entry.allowed; })
+        .sort(function (a, b) {
+            if (a.bias !== b.bias) return b.bias - a.bias;
+            if (a.cost !== b.cost) return a.cost - b.cost;
+            return a.index - b.index;
+        })
+        .map(function (entry) { return entry.resolver; });
+
+    for (const resolver of ordered)
+    {
+        const result = resolver.getId(context);
+        if (result) return result;
+    }
+    return null;
+}
+
+const patreonIdResolvers = [
+    {
+        name: "bootstrap_campaign",
+        when: function (ctx) { return !!ctx.pageBootstrap; },
+        cost: "cheap",
+        bias: function (ctx) { return ctx.isCw ? "low" : "high"; },
+        getId: function (ctx) { return ctx.pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id; }
+    },
+    {
+        name: "bootstrap_creator_relationship",
+        when: function (ctx) { return !!ctx.pageBootstrap; },
+        cost: "cheap",
+        bias: function (ctx) { return ctx.isCw ? "low" : "high"; },
+        getId: function (ctx) { return ctx.pageBootstrap?.creator?.data?.relationships?.creator?.data?.id; }
+    },
+    {
+        name: "bootstrap_creator_included",
+        when: function (ctx) { return !!ctx.pageBootstrap; },
+        cost: "medium",
+        bias: function (ctx) { return ctx.isCw ? "low" : "neutral"; },
+        getId: function (ctx) { return ctx.pageBootstrap?.creator?.included?.[1]?.id; }
+    },
+    {
+        name: "next_fragments",
+        when: function (ctx) { return Array.isArray(ctx.nextFragments) && ctx.nextFragments.length > 0; },
+        cost: "expensive",
+        bias: function (ctx) { return ctx.isCw ? "high" : "low"; },
+        getId: function (ctx) { return extract_patreon_creator_id(ctx.nextFragments); }
+    },
+    {
+        name: "query_param",
+        when: function (ctx) { return ctx.search.indexOf("?u=") !== -1; },
+        cost: "cheap",
+        bias: "highest",
+        getId: function (ctx) {
+            const queryMatch = ctx.search.match(patreonIdRegex);
+            return queryMatch?.groups?.id || null;
+        }
+    }
+];
+
+function resolve_patreon_creator_id()
 {
     const pageBootstrap = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap;
-    const creatorID0 = pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id;
-    const creatorID1 = pageBootstrap?.creator?.data?.relationships?.creator?.data?.id;
-    const creatorID2 = pageBootstrap?.creator?.included?.[1]?.id;
-    const creatorID3 = extract_creator_id(window.__next_f);
-    const queryMatch = window.location.search.match(patreonIdRegex);
-    const queryID    = queryMatch?.groups?.id;
 
-    let ID = creatorID0 || creatorID1 || creatorID2 || creatorID3 || queryID;
+    const context = {
+        pageBootstrap: pageBootstrap,
+        nextFragments: window.__next_f,
+        search: window.location.search,
+        pathname: window.location.pathname,
+        isCw: window.location.pathname.startsWith("/cw/")
+    };
+    return resolve_with_resolvers(patreonIdResolvers, context);
+}
+
+function switch_patreon_to_kemono()
+{
+    let ID = resolve_patreon_creator_id();
 
     if (!ID)
     {
@@ -92,52 +200,148 @@ function switch_patreon_to_kemono()
 }
 
 
+
+const fanboxIdResolvers = [
+    {
+        name: "background_images",
+        cost: "expensive",
+        bias: "neutral",
+        getId: function () {
+            const creatorImageRegex = /(?:creator|user)\/(?<userId>\d+)\/cover/;
+            const postImageRegex = /post\/(?<postId>\d+)\/cover/;
+
+            let userId = undefined;
+            let postId = undefined;
+            const bg_images = Array.from(document.querySelectorAll('[style^="background-image:"')).map((e)=>{ return e.style.backgroundImage });
+
+            for (let image_idx in bg_images)
+            {
+                if (userId && postId)
+                {
+                    break;
+                }
+
+                const image = bg_images[image_idx];
+
+                if (userId === undefined)
+                {
+                    const match = image.match(creatorImageRegex); // look for (creator|user)/<userId>/cover
+                    if (match)
+                    {
+                        userId = match.groups.userId;
+                    }
+                }
+
+                if (postId === undefined)
+                {
+                    const match = image.match(postImageRegex); // look for post/<postId>/cover
+                    if (match)
+                    {
+                        postId = match.groups.postId;
+                    }
+                }
+            }
+
+            if (!userId) return null;
+            return { userId: userId, postId: postId };
+        }
+    }
+];
+
+const gumroadIdResolvers = [
+    {
+        name: "profile_script",
+        cost: "medium",
+        bias: "neutral",
+        getId: function () {
+            // universal selector
+            let profile = document.querySelector('script[type="application/json"][class=js-react-on-rails-component][data-component-name*="Profile"]');
+            if (profile === null)
+            {
+                // main page selector
+                profile = document.querySelector("script[data-component-name=Profile]");
+            }
+            if (profile === null)
+            {
+                // product page selector
+                profile = document.querySelector("script[data-component-name=ProfileProductPage]");
+            }
+            if (profile === null) return null;
+
+            const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,""));
+            return data.creator_profile.external_id || null;
+        }
+    }
+];
+
+const subscribestarIdResolvers = [
+    {
+        name: "path_id",
+        cost: "cheap",
+        bias: "neutral",
+        getId: function () {
+            const userIDRegex = /\/(?<userId>[^\/]+)/;
+            const match = window.location.pathname.match(userIDRegex);
+            if (!match) return null;
+            return match.groups.userId || null;
+        }
+    }
+];
+
+const fantiaIdResolvers = [
+    {
+        name: "path_ids",
+        cost: "cheap",
+        bias: "neutral",
+        getId: function () {
+            const userIDRegex = /fanclubs\/(?<userId>\d+)/;
+            const postIDRegex = /posts\/(?<postId>\d+)/;
+
+            const userIdMatch = window.location.pathname.match(userIDRegex);
+            if (!userIdMatch) return null;
+
+            const postIdMatch = window.location.pathname.match(postIDRegex);
+            const postId = postIdMatch?.groups?.postId;
+            return { userId: userIdMatch.groups.userId, postId: postId };
+        }
+    },
+    {
+        name: "ld_json",
+        cost: "medium",
+        bias: "low",
+        getId: function () {
+            const userIDRegex = /fanclubs\/(?<userId>\d+)/;
+            const postIDRegex = /posts\/(?<postId>\d+)/;
+            const postIdMatch = window.location.pathname.match(postIDRegex);
+            const postId = postIdMatch?.groups?.postId;
+
+            const profile = document.querySelector('script[type="application/ld+json"]');
+            if (profile === null) return null;
+
+            const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,""));
+            const url = data.author?.url;
+            if (!url) return null;
+
+            const userIdMatch = url.match(userIDRegex);
+            if (!userIdMatch) return null;
+            return { userId: userIdMatch.groups.userId, postId: postId };
+        }
+    }
+];
+
 function switch_fanbox_to_kemono()
 {
-    const creatorImageRegex = /(?:creator|user)\/(?<userId>\d+)\/cover/;
-    const postImageRegex = /post\/(?<postId>\d+)\/cover/;
     try
     {
-        let userId = undefined
-        let postId = undefined
-        let bg_images = Array.from(document.querySelectorAll('[style^="background-image:"')).map((e)=>{ return e.style.backgroundImage });
-
-        for (let image_idx in bg_images)
-        {
-            if (userId && postId)
-            {
-                break;
-            }
-
-            const image = bg_images[image_idx];
-
-            if (userId === undefined)
-            {
-                const match = image.match(creatorImageRegex); // look for (creator|user)/<userId>/cover
-                if (match)
-                {
-                    userId = match.groups.userId;
-                }
-            }
-
-            if (postId === undefined)
-            {
-                const match = image.match(postImageRegex); // look for post/<postId>/cover
-                if (match)
-                {
-                    postId = match.groups.postId;
-                }
-            }
-        }
-
-        if (userId)
-        {
-            window.location.assign(postId === undefined ? `https://${kemono_domain}/fanbox/user/${userId}` : `https://${kemono_domain}/fanbox/user/${userId}/post/${postId}`);
-        }
-        else
+        const ids = resolve_with_resolvers(fanboxIdResolvers, {});
+        if (!ids || !ids.userId)
         {
             throw "userId not found";
         }
+
+        const userId = ids.userId;
+        const postId = ids.postId;
+        window.location.assign(postId === undefined ? `https://${kemono_domain}/fanbox/user/${userId}` : `https://${kemono_domain}/fanbox/user/${userId}/post/${postId}`);
     }
     catch(b)
     {
@@ -149,23 +353,10 @@ function switch_gumroad_to_kemono()
 {
     try
     {
-        // universal selector
-        let profile = document.querySelector('script[type="application/json"][class=js-react-on-rails-component][data-component-name*="Profile"]');
-        if (profile === null)
-        {
-            // main page selector
-            profile = document.querySelector("script[data-component-name=Profile]");
-        }
-        if (profile === null)
-        {
-            // product page selector
-            profile = document.querySelector("script[data-component-name=ProfileProductPage]");
-        }
+        const ID = resolve_with_resolvers(gumroadIdResolvers, {});
+        if (!ID) throw "gumroad id not found";
 
-        const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
-        const ID = data.creator_profile.external_id
-
-        window.location.assign(`https://${kemono_domain}/gumroad/user/${ID}`)
+        window.location.assign(`https://${kemono_domain}/gumroad/user/${ID}`);
     }
     catch(e)
     {
@@ -178,15 +369,12 @@ function switch_subscribestar_to_kemono()
     // TODO: Allow transition to posts.
     // Can't do for naow cause i did not find a creator with a free post and i don't have the subscribtion so idk apout post url and page content
 
-    const userIDRegex = /\/(?<userId>[^\/]+)/
-
     try
     {
-        const match = window.location.pathname.match(userIDRegex);
-        if (match)
-        {
-             window.location.assign(`https://${kemono_domain}/subscribestar/user/${match.groups.userId}`);
-        }
+        const userId = resolve_with_resolvers(subscribestarIdResolvers, {});
+        if (!userId) return;
+
+        window.location.assign(`https://${kemono_domain}/subscribestar/user/${userId}`);
     }
     catch(e)
     {
@@ -196,42 +384,13 @@ function switch_subscribestar_to_kemono()
 
 function switch_fantia_to_kemono()
 {
-    const userIDRegex = /fanclubs\/(?<userId>\d+)/
-    const postIDRegex = /posts\/(?<postId>\d+)/
-
     try
     {
-        let userId = undefined;
-        let postId = undefined;
+        const ids = resolve_with_resolvers(fantiaIdResolvers, {});
+        if (!ids || !ids.userId) throw "userId not found";
 
-        const userIdMatch = window.location.pathname.match(userIDRegex);
-        if (userIdMatch)
-        {
-             userId = userIdMatch.groups.userId
-        }
-
-        const postIdMatch = window.location.pathname.match(postIDRegex);
-        if (postIdMatch)
-        {
-             postId = postIdMatch.groups.postId
-        }
-
-        if(userId == undefined)
-        {
-            try
-            {
-                const profile = document.querySelector('script[type="application/ld+json"]');
-                const data = JSON.parse(profile.innerHTML.replace(/^\s+|\s+$/g,''));
-                const url = data.author.url
-                const userIdMatch = url.match(userIDRegex);
-                userId = userIdMatch.groups.userId
-            }
-            catch(a)
-            {
-                throw a;
-            }
-        }
-
+        const userId = ids.userId;
+        const postId = ids.postId;
         window.location.assign(postId === undefined ? `https://${kemono_domain}/fantia/user/${userId}` : `https://${kemono_domain}/fantia/user/${userId}/post/${postId}`);
     }
     catch(e)
