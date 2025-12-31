@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.6.2
+// @version      2.7.0
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -36,17 +36,89 @@ const subscribestar_service = "subscribestar";
 const fantia_service = "fantia";
 const boosty_service = "boosty";
 
+const NEEDLES = [
+    "\"creator\":{\"data\":{\"id\":\"",                 // raw JSON
+    "\\\"creator\\\":{\\\"data\\\":{\\\"id\\\":\\\""    // backslash-escaped JSON inside a string
+];
+
+function* iter_string_chunks(frag_array)
+{
+    if (!Array.isArray(frag_array)) return;
+
+    for (let i = 0; i < frag_array.length; i++)
+    {
+        const entry = frag_array[i];
+        if (!Array.isArray(entry)) continue;
+        if (entry[0] !== 1) continue;
+
+        const chunk = entry[1];
+        if (typeof chunk === "string" && chunk.length) yield chunk;
+    }
+}
+
+function find_creator_id_in_string(s)
+{
+    for (const needle of NEEDLES)
+    {
+        let from = 0;
+
+        while (true)
+        {
+            const idx = s.indexOf(needle, from);
+            if (idx === -1) break;
+
+            const start = idx + needle.length;
+            const len = s.length;
+
+            // digits-only id
+            let i = start;
+            if (i < len)
+            {
+                let c = s.charCodeAt(i);
+                if (c >= 48 && c <= 57)
+                {
+                    i++;
+                    while (i < len)
+                    {
+                        c = s.charCodeAt(i);
+                        if (c < 48 || c > 57) break;
+                        i++;
+                    }
+                    if (i < len && s.charCodeAt(i) === 34 /* " */)
+                    {
+                        return s.slice(start, i);
+                    }
+                }
+            }
+
+            from = idx + 1;
+        }
+    }
+
+    return null;
+}
+
+function extract_creator_id(frag_array)
+{
+    for (const chunk of iter_string_chunks(frag_array))
+    {
+        const id = find_creator_id_in_string(chunk);
+        if (id !== null) return id;
+    }
+    return null;
+}
+
 function switch_patreon_to_kemono()
 {
     const pageBootstrap = window.__NEXT_DATA__?.props?.pageProps?.bootstrapEnvelope?.pageBootstrap;
-
     const creatorID0 = pageBootstrap?.campaign?.data?.relationships?.creator?.data?.id;
     const creatorID1 = pageBootstrap?.creator?.data?.relationships?.creator?.data?.id;
     const creatorID2 = pageBootstrap?.creator?.included?.[1]?.id;
+    const creatorID3 = extract_creator_id(window.__next_f);
     const queryMatch = window.location.search.match(patreonIdRegex);
     const queryID    = queryMatch?.groups?.id;
 
-    let ID = creatorID0 || creatorID1 || creatorID2 || queryID;
+    let ID = creatorID0 || creatorID1 || creatorID2 || creatorID3 || queryID;
 
     if (!ID)
     {
