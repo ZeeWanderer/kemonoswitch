@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch to Kemono
 // @namespace    http://tampermonkey.net/
-// @version      2.7.0
+// @version      2.7.1
 // @description  Press ALT+k to switch to Kemono
 // @author       ZeeWanderer
 // @match        https://www.patreon.com/*
@@ -36,10 +36,7 @@ const subscribestar_service = "subscribestar";
 const fantia_service = "fantia";
 const boosty_service = "boosty";
 
-const NEEDLES = [
-    "\"creator\":{\"data\":{\"id\":\"",                 // raw JSON
-    "\\\"creator\\\":{\\\"data\\\":{\\\"id\\\":\\\""    // backslash-escaped JSON inside a string
-];
+const CREATOR_ID_REGEX = /"creator":\{"data":\{"id":"(\d+)"/;
 
 function* iter_string_chunks(frag_array)
 {
@@ -58,44 +55,9 @@ function* iter_string_chunks(frag_array)
 
 function find_creator_id_in_string(s)
 {
-    for (const needle of NEEDLES)
-    {
-        let from = 0;
-
-        while (true)
-        {
-            const idx = s.indexOf(needle, from);
-            if (idx === -1) break;
-
-            const start = idx + needle.length;
-            const len = s.length;
-
-            // digits-only id
-            let i = start;
-            if (i < len)
-            {
-                let c = s.charCodeAt(i);
-                if (c >= 48 && c <= 57)
-                {
-                    i++;
-                    while (i < len)
-                    {
-                        c = s.charCodeAt(i);
-                        if (c < 48 || c > 57) break;
-                        i++;
-                    }
-                    if (i < len && s.charCodeAt(i) === 34 /* " */)
-                    {
-                        return s.slice(start, i);
-                    }
-                }
-            }
-
-            from = idx + 1;
-        }
-    }
-
-    return null;
+    const match = s.match(CREATOR_ID_REGEX);
+    if (!match) return null;
+    return match[1] || match[2] || null;
 }
 
 function extract_creator_id(frag_array)
